@@ -1,11 +1,11 @@
 ﻿PyjAmaseis was written using Python 2.7.8 -  
 
-The current version is v2.0 (2016). v1.0 written by Saketh Vishnubhotla, 2014.
+The current version is v2.0 (2017). v1.0 written by Saketh Vishnubhotla, 2014.
 
 PyjAmaseis should run as a *.py file on Windows, Linux, and Mac operating systems, provided Python 2 and the correct modules
 have been installed (many should already be in the python libraries if python is installed). The current version can be downloaded
 and run via the python command at the terminal. Note that PyjAmaseis has been written as helicorder software for the TC-1 seismometer,
-but could be developed to accommodate different models of amateur seismometers.
+but could be developed to accommodate different models of amateur seismometers. For now, Arduino drivers must also be installed for PyjAmasis to automatically recognise the TC-1. The easiest way to install these is to download and install the Arduino IDE from https://www.arduino.cc/en/Guide/HomePage.
 
 The bash shell script module-installer.sh can be run as 'sudo bash module-installer.sh' on linux operating systems to install most of the
 required modules.
