@@ -1,35 +1,60 @@
-#=================================================================================================================
-# Structure of PyjAmaseis 
-#
-# - IMPORTS
-# - STATION INFORMATION USER INTERFACE CODE (class myFrame4)
-# - SECONDARY OPTIONS UI WINDOW CODE (class selectionWindow)
-# - CODE FOR FRAME WHICH APPEARS AT BOTTOM OF PLOTTING WINDOW (class lowerFrame)
-# - DATA SELECTION AND EXTRACTION CODE (class dataHandler)
-# - INITIALIZATION OF PLOTTING CODE (class Plotting)
-# - CLASS FOR HANDLING TK FRAMES WHICH MUST BE IN MAIN THREAD (class mFrame)
-# - alignToBottomRight Function - aligns secondary window to bottom right hand corner of screen
-# - secondaryWindow Function - creates the Options window
-# - Collecting Function - collects and process data read from the TC1
-# - plotPrevious Function - loads and plots pre-recorded data
-# - saveHourData Function - saves data recorded by TC1
-# - getSerialPort Function - finds the serial port the TC1 is connected to
-# - serial_ports Functions - returns all active serial ports
-# - initializeHeader Function used to create a header object for headers in a SAC object
-# - plotData - called by the Plotting function to plot data
-# - calculateYAxisLabels - creates 24 hour UTC labels for the y axis, these are saved in an array
-# - calculateYAxisLabelsOneHour - creates y axis labels for the current hour in UTC divided into 5 minute sections
-# - xAxisLabels Function - Creates the labels which appear on the x axis of teh plottting window
-# - window_close Function - causes the collecting and plotting processes to stop before closing windows
-# - directory_handler Function - checks for a directory or creates a new one
-# - getHourData Function - looks for an loads previously recorded data
-# - if __name__ == '__main__': - the is where the code starts
-#
-#=================================================================================================================
+'''
+PyjAmaSeis helicorder software, for use with the TC-1 seismomemter in educational seismology.
+This python sotware is designed to acquire, display, and save seismic data, and is based on the
+amateur helicorder software jAmaSeis (written in java and available from IRIS at:
+https://www.iris.edu/hq/inclass/software-web-app/jamaseis) and its predecessor AmaSeis.
+The code was originally developed by Saketh Vishnubhotla in 2014, with further development
+in 2015/16 by Jonathan Simpson within the Physical Acoustics Laboratory at the University
+of Auckland, New Zealand (https://pal.blogs.auckland.ac.nz/). This software is developed with 
+the educational seismology network in New Zealand schools (Ru, see http://ru.auckland.ac.nz/) in mind,
+but will work with any TC-1 seismometer (or any Arduino which supplies integers at a regular interval
+through a serial port). See https://tc1seismometer.wordpress.com/ for more information on the TC-1.
 
-### Importing all required libraries for running PyjAmaseis
-### v1.0 change: The cross-platform screenshot module pyscreenshot is imported instead of the PIL module ImageGrab
-### which is Windows-only. Tkinter messagebox is also imported.
+
+Contacts:
+          --PyjAmaSeis code problems/suggestions:    Kasper van Wijk   (k.vanwijk@auckland.ac.nz)
+                                                     Jonathan Simpson  (jsim921@aucklanduni.ac.nz)
+                                                     
+          --TC-1 seismometer operation/Ru network:   Ru Network        (ru@list.science.auckland.ac.nz)
+          
+Current version: 2.0
+Current Functionality: Data acquisition, data saving (as .sac files), real-time data display (in 24hr 
+                       and 1hr plots), interactive data selection, display, and saving of arbitrary
+                       data segments, display of data from file.
+
+
+=================================================================================================================
+ Structure of PyjAmaseis 
+ - IMPORTS
+ - STATION INFORMATION USER INTERFACE CODE (class myFrame4)
+ - SECONDARY OPTIONS UI WINDOW CODE (class selectionWindow)
+ - CODE FOR FRAME WHICH APPEARS AT BOTTOM OF PLOTTING WINDOW (class lowerFrame)
+ - DATA SELECTION AND EXTRACTION CODE (class dataHandler)
+ - INITIALIZATION OF PLOTTING CODE (class Plotting)
+ - CLASS FOR HANDLING TK FRAMES WHICH MUST BE IN MAIN THREAD (class mFrame)
+ - alignToBottomRight Function - aligns secondary window to bottom right hand corner of screen
+ - secondaryWindow Function - creates the Options window
+ - Collecting Function - collects and process data read from the TC1
+ - plotPrevious Function - loads and plots pre-recorded data
+ - saveHourData Function - saves data recorded by TC1
+ - getSerialPort Function - finds the serial port the TC1 is connected to
+ - serial_ports Functions - returns all active serial ports
+ - initializeHeader Function used to create a header object for headers in a SAC object
+ - plotData - called by the Plotting function to plot data
+ - calculateYAxisLabels - creates 24 hour UTC labels for the y axis, these are saved in an array
+ - calculateYAxisLabelsOneHour - creates y axis labels for the current hour in UTC divided into 5 minute sections
+ - xAxisLabels Function - Creates the labels which appear on the x axis of teh plottting window
+ - window_close Function - causes the collecting and plotting processes to stop before closing windows
+ - directory_handler Function - checks for a directory or creates a new one
+ - getHourData Function - looks for an loads previously recorded data
+ - if __name__ == '__main__': - the is where the code starts
+
+=================================================================================================================
+'''
+###Importing all required libraries for running PyjAmaseis
+###v1.0 change: The cross-platform screenshot module pyscreenshot is imported instead of the PIL module ImageGrab
+###which is Windows-only. Tkinter messagebox is also imported.
+
 import matplotlib
 matplotlib.use('TkAgg')
 
@@ -62,7 +87,6 @@ import fileinput
 import pycurl
 import base64
 
-
 #### Initial window presented to user when launching PyjAmaseis for the first time
 #### This window will require the user to enter the station information which will be later used when saving SAC files
 #### Class was auto generate by using wxGlade
@@ -74,7 +98,7 @@ class MyFrame4(wx.Frame):
         self.iconFile = "icons/icon.ico"
         self.icon = wx.Icon(self.iconFile, wx.BITMAP_TYPE_ICO)
         self.SetIcon(self.icon)
-        self.bitmap_1 = wx.StaticBitmap(self, wx.ID_ANY, wx.Bitmap("logo.gif", wx.BITMAP_TYPE_ANY))
+        self.bitmap_1 = wx.StaticBitmap(self, wx.ID_ANY, wx.Bitmap("icons/logo.gif", wx.BITMAP_TYPE_ANY))
         self.label_4 = wx.StaticText(self, wx.ID_ANY, ("Station Information\n"))
         self.label_6 = wx.StaticText(self, wx.ID_ANY, ("Station ID:"))
         self.text_ctrl_2 = wx.TextCtrl(self, wx.ID_ANY, "")
@@ -184,8 +208,6 @@ class MyFrame4(wx.Frame):
         self.Centre()
         # end wxGlade
 
-# end of class MyFrame4
-
 #### This class represents the secondary options window that is launching when the real time plotting of data begins
 #### Signals are sent over a secondary queue that listens for when the user wants to change between a 24 Hour plot to a 1 hour plot
 #### A Y Shift is also signaled to shift the graph up or down on the y axis
@@ -292,10 +314,11 @@ class selectionWindow(wx.Frame):
             now = datetime.utcnow()
             for i in range(len(directoryList)):
                 if not os.path.exists(directoryList[i][1]):
-                    if (end[0].year, end[0].month, end[0].day, end[1]) == (now.year, now.month, now.day, now.hour):
+                    if ((end[0].year, end[0].month, end[0].day, end[1]) == (now.year, now.month, now.day, now.hour)) and i+1==len(directoryList):
                         directoryList[i][1] = 'now'
                     else:
-                        msgbx.showerror("Error", "Some or all of the selected time\ndoes not have recorded data. Please\nselect a region of time which has\ncontinuous data.")
+                        msgbx.showerror("Error", "Some or all of the selected time does not have recorded data. Please select a region of time which has continuous data.")
+                        self.dataAccess.dataDeselector('resize')
                         return
                 elif directoryList[i][0] == (int(now.year), int(now.month), int(now.day), int(now.hour)):
                     directoryList[i][1] = directoryList[i][1] + 'now'
@@ -314,7 +337,6 @@ class selectionWindow(wx.Frame):
                         total_time = hourTime.minute*60+hourTime.second+hourTime.microsecond/1000000.0
                         start_index = int(start[2]*3600/total_time*len(hourSeisDat))
                         end_index = int(end[2]*3600/total_time*len(hourSeisDat))
-                        print 'Ind', start_index, end_index
                         if len(directoryList[i][1]) > 3:
                             trace = read(pathname_or_url = directoryList[0][1][:-3], format = 'SAC')
                             trace = trace.pop(0)
@@ -463,7 +485,7 @@ class lowerFrame():
         loc_time_label = tk.Label(self.frame, text='Time at mouse location: ', bg=bckgrnd)
         loc_time_label.pack(side='right', pady=1)
         self.mode = "24-Hour-Plot"   #Changed in plotData when mode is changed. Makes it easy to tell mode when mouse_move is called.
-        self.firstHour = datetime.utcnow()
+        self.firstHour = datetime.utcnow()-dt.timedelta(hours=22)
     
     ##Function to display the time at the mouse location on the plot. THis is called when the mouse is moved over the plot (see mpl_connect binding of fig in Plotting). (18/12/15)
     def mouse_move(self, event, graph_constant):
@@ -546,6 +568,8 @@ class dataHandler():
                     self.window_height = self.canvas._tkcanvas.winfo_height()
                     self.originalx = x_pixel
                     self.original_xdat = x_dat_pos
+                    self.currentEndy = y_dat_pos
+                    self.currentEndx = x_dat_pos+0.4
                     self.originaly = self.window_height-y_pixel-(self.frame_height/self.graphHeightConst*data_buffer)  #self.frame_height/self.graphHeightConst is pixels/data
                     self.initialTime = self.findTime(x_dat_pos, y_dat_pos, data_buffer)
                     self.drawFrame()
@@ -702,7 +726,7 @@ class dataHandler():
         self.topHoriz.place(x = self.originalx, y = self.originaly)
         self.topHoriz.place(x = self.originalx, y = self.originaly)
         self.leftVert.place(x = self.originalx, y = self.originaly)
-        self.botHoriz.place(x = self.originalx, y = self.originaly+self.frame_height-1)
+        self.botHoriz.place(x = self.originalx, y = self.originaly+self.frame_height)
         self.rightVert.place(x = self.originalx+3, y = self.originaly)
         self.selection_frame = (self.topHoriz, self.botHoriz, self.leftVert, self.rightVert)
     
@@ -729,7 +753,7 @@ class dataHandler():
 ###while allowing for the mainloop of the plotting window to be in the main thread.
 class Plotting():  
     def __init__(self, queue, queue2):
-        global mainWin, plotting_loop, options_window
+        global mainWin, plotting_loop, options_window, infoAccess
         
         looping = True
         while looping:
@@ -768,8 +792,8 @@ class Plotting():
             fig = plt.figure(figsize=(13,9))   #15,10
 
             # v1.0 change: AttributeError: 'Figure' object has no attribute 'set_tight_layout' on Linux
-            if platform.system() != 'Linux':
-                fig.set_tight_layout(0.4)
+            #if platform.system() != 'Linux':
+            #    fig.set_tight_layout(0.4)
 
             ax = fig.add_subplot(1,1,1)
             ax.set_xlim(0,60)
@@ -798,12 +822,26 @@ class Plotting():
             self.displayItems = None
             dataInteractive.displayItems = self.displayItems
             fig.canvas.mpl_connect('motion_notify_event', lambda event: bottomFrame.mouse_move(event, graphHeightConst))
+            fig.tight_layout()
+            
             mainWin.update_idletasks()
             geometry = mainWin.geometry()
             geometry = geometry[:geometry.find('+')]
 
             mainWin.after(0, plotData,queue, queue2, fig, ax, canvas, bottomFrame, mainWin, lastY, lastX, connect, line, mode, geometry, dataInteractive)
             
+
+class infoLabel():
+    def __init__(self, data):
+        self.stationId = data[0]
+        self.stationName = data[1]
+        self.stationLat = data[2]
+        self.stationLon = data[3]
+        
+    def plotLabel(fig, ax, mode):
+        text = self.stationName+' ('+self.stationId+'): '+self.stationLat+', '+self.stationLabel
+        return text    
+        
 
 ###Any tk Frames used in this program must originate from the __main__ thread. Hence, this class, which is only called from the __main__ thread, initiates a
 ###list of tk frames that can be used from other threads but still have their mainloops in the __main__ thread. The frames are mostly used in dataHandler.
@@ -897,7 +935,7 @@ def secondaryWindow(queue2, queue3):
 
 #### This is the Collecting method (Thread) responsible for reading data from the TC1, sending this data via a queue to plotting thread/method, saving data into SAC, listening to commands from Options window, and uploading SAC files to NZSeis server after saving them
 def Collecting(queue, queue2, queue3):
-    global collecting_loop, stationId, options_window
+    global collecting_loop, stationId, options_window, infoAccess
     
     #Stats header information initialization
     stationId = 01
@@ -944,6 +982,7 @@ def Collecting(queue, queue2, queue3):
             
             oldDCShift = int(line[line.find(":")+1::])
     file.close()
+    infoAccess = infoLabel([stationId, stationName, latitude, longitude])
     
     #initializing further required variables
     mode = "None"
@@ -990,16 +1029,17 @@ def Collecting(queue, queue2, queue3):
     secondaryWindowProcess.start()
     
     queue.put("Start Plotting Process")
-
-    #create a stats object that holds all the station information retrieved from the txt file
-    stats = initializeHeader(longitude, latitude , elevation)
     
-    hourSeismicData, stats = getHourData(stats) #stores the data from the hour, populated with data from previous recordings in the hour or zeroes
     hourTimeData = np.array([], dtype = np.float64)
     tempSeismicData = np.array([]) #used to store 18 value read from the tc1 and sent is sent to the plotting array, then cleared for next 18 values
     
-    queue.put(['prev', hourSeismicData, currentMode, 'None', graphHeightConst, dcShift, skipConst, stats])     #bad idea. change this becasue it will take too long, and the length of the data array will be too short by the time collecting process is started.
+    #create a stats object that holds all the station information retrieved from the txt file
+    stats = initializeHeader(longitude, latitude , elevation)    
+    hourSeismicData, stats, dayData = getHourData(queue, currentMode, 'None', graphHeightConst, dcShift, skipConst, stats)
+    while queue2.get() != 'ready':    #So that real-time plotting begins only once previous data has been plotted. 'ready' is put in queue2 when plotData gets 'prev' data (from plotPrevious) where the number is 0.
+        waiting = 'waiting'    
     
+    timenow = Time.time()
     while collecting_loop:
         try:
             #Checks whether the user has changed the view selection in the options window from 24 hour to 1 hour or has increased or decreased the graphShift
@@ -1008,7 +1048,9 @@ def Collecting(queue, queue2, queue3):
                 if readingQueue2 == "24-Hour-Plot":
                     currentMode = "24Hour"
                     now = Time.time()
-                    queue.put(['prev', hourSeismicData, currentMode, '24-Hour-Plot', graphHeightConst, dcShift, skipConst, stats])
+                    dummy, stats, dayData = getHourData(queue, currentMode, '24-Hour-Plot', graphHeightConst, dcShift, skipConst, stats)  #Don't want to reassign hourSeismicData, hence dummy
+                    while queue2.get() != 'ready':  
+                        waiting = 'waiting'
                     totalHoursConst = 23
                     tempSeismicData = np.array([])
                     tempMillisecond = np.array([])
@@ -1050,41 +1092,23 @@ def Collecting(queue, queue2, queue3):
             
             if currentMode == "24Hour":
                 #Depending on the hour and viewMode which is 24 or 1 hour plotting, the data value that is read is translated to the appropriate height
-                data = [int(reading+(graphHeightConst*totalHoursConst))+dcShift]
+                data = [int(reading)+dcShift+graphHeightConst]     #last term is for second-to-last line plotting
+                #data = [int(reading+(graphHeightConst*totalHoursConst))+dcShift]
 
             if currentMode == "1Hour":
-                minute = (datetime.time(datetime.now())).minute
-                if minute < 5:
-                    data = [int(reading+(graphHeightConst*11))+dcShift]
-                if minute < 10 and minute >= 5:
-                    data = [int(reading+(graphHeightConst*10))+dcShift]
-                if minute < 15 and minute >= 10:
-                    data = [int(reading+(graphHeightConst*9))+dcShift]
-                if minute < 20 and minute >= 15:
-                    data = [int(reading+(graphHeightConst*8))+dcShift]
-                if minute < 25 and minute >= 20:
-                    data = [int(reading+(graphHeightConst*7))+dcShift]
-                if minute < 30 and minute >= 25:
-                    data = [int(reading+(graphHeightConst*6))+dcShift]
-                if minute < 35 and minute >= 30:
-                    data = [int(reading+(graphHeightConst*5))+dcShift]
-                if minute < 40 and minute >= 35:
-                    data = [int(reading+(graphHeightConst*4))+dcShift]
-                if minute < 45 and minute >= 40:
-                    data = [int(reading+(graphHeightConst*3))+dcShift]
-                if minute < 50 and minute >= 45:
-                    data = [int(reading+(graphHeightConst*2))+dcShift]
-                if minute < 55 and minute >= 50:
-                    data = [int(reading+(graphHeightConst*1))+dcShift]
-                if minute < 60 and minute >= 55:
-                    data = [int(reading+(graphHeightConst*0))+dcShift]
-
+                data = int(reading)+dcShift+graphHeightConst    
+                
             if (hour != lastHour):
                 ## Everytime the hour changes the following code saves hour long SAC Files
                 lastHour = hour
                 fileName, stats, directory = saveHourData(stats, hourSeismicData, stationId,longitude, latitude , elevation)
-                analyseTimes(hourTimeData)
-                hourSeismicData = np.array([])
+                if currentMode == "24Hour":
+                    hourSeismicData, stats, dayData = getHourData(queue, currentMode, 'None', graphHeightConst, dcShift, skipConst, stats)
+                    while queue2.get() != 'ready':  
+                        waiting = 'waiting'
+                
+                
+                analyseTimes(hourTimeData)                
                 hourTimeData = np.array([], dtype = np.float64)
                 ##Uploads SAC file right after creating it
 
@@ -1167,19 +1191,42 @@ def Collecting(queue, queue2, queue3):
                 window_close()
             else:
                 print exc_type
-    
+        
     queue.put((stats, hourSeismicData, stationId, longitude, latitude , elevation, hourTimeData))  #saves data when program closes.
     
     return                  
 
+def readSeismometer():
+    serialPort = serial.Serial('/dev/ttyACM0')
+    readings, times = [], []
+    time = datetime.utcnow()
+    lastTime = time.minute + (time.second + time.microsecond/1000000.0)/60.0
+    time1 = Time.time()
+    diff = 0
+    delta = (1/18.7647228241)
+    count = 0
+    start = Time.time()
+    while Time.time()-start < 60:
+        reading = serialPort.readline()
+        try:
+            readings.append(int(reading)), times.append(lastTime)
+            lastTime += delta
+            readings, times = [], []
+            if int(reading)>30000:    
+                count+=1
+        except:
+            pass
+    print Time.time()-start, count
+            
+
 ##This function is responsible for plotting data whcih is pre-loaded and has not been read from the seismometer in real-time. (11/12/15)
-def plotPrevious(hour_data=None, currentMode=None, mode=None, graphHeightConst=None, dcShift=None, skipConst=None, stats=None):
+def plotPrevious(hour_data=None, currentMode=None, mode=None, graphHeightConst=None, dcShift=None, skipConst=None, stats=None, number=None):
     data_array = hour_data
     delta = stats['delta']
     if currentMode == "24Hour":
-        data_array = data_array+(graphHeightConst*23+dcShift)
+        data_array = data_array+(graphHeightConst*(number+1)+dcShift)    #number=number of hours before current, number+1 ensures real-time is plotted on second-to-last line.
         time_array = np.arange(0,len(data_array))*delta/60
-        queue.put([data_array, time_array, False, False, mode])
+        queue.put([data_array, time_array, 'prev', False, mode, number])
     if currentMode == "1Hour":
         tot_length = 0
         for i in range(12):
@@ -1202,9 +1249,9 @@ def plotPrevious(hour_data=None, currentMode=None, mode=None, graphHeightConst=N
                     time_array = np.arange(0,len(data_array))*delta/60
                     mode = "1st-1-Hour-Plot"
                 if len(time_array) == len(data)+1:
-                    print len(time_array), len(data)
                     time_array = time_array[:len(data)]                
                 queue.put([data, time_array, False, False, mode])
+                
 
 ##This function (newv2.0) saves the seismic data from the hour. (11/12/15)
 def saveHourData(stats, hourSeismicData, stationId, longitude, latitude , elevation):
@@ -1362,7 +1409,11 @@ def plotData(queue, queue2, fig, ax, canvas, bottomFrame, root, lastY, lastX, co
     if(queue.empty() == False):
         #read the arrays and values sent by the collecting process. If _continue is changed to False if this gets a call to plot previous data.
         values, _continue = queue.get(), True
-        geometry = resize(root, geometry, mode)
+        if values[0] != 'prev':    
+            geometry = resize(root, geometry, mode)
+        else:
+            geometry = root.geometry()
+            geometry = geometry[:geometry.find('+')]
         ##
         if values[4] == "24-Hour-Plot":    #Only when data is put in queue by plotPrevious (15/12/15)
             dataInteractive.dataDeselector('resize')
@@ -1371,9 +1422,8 @@ def plotData(queue, queue2, fig, ax, canvas, bottomFrame, root, lastY, lastX, co
             lastY = 0
             mode = "24-Hour-Plot"          #This variable is local to plotData and is not the same as mode in Collecting (that's values[4])
             bottomFrame.mode = "24-Hour-Plot"
-            bottomFrame.firstHour = datetime.utcnow()
+            bottomFrame.firstHour = datetime.utcnow()-dt.timedelta(hours=22)
             graphHeightConst = 2500
-
             ax.cla()
 
             ax.set_xlim(0,60)
@@ -1445,14 +1495,13 @@ def plotData(queue, queue2, fig, ax, canvas, bottomFrame, root, lastY, lastX, co
 
             #The following if statement and its content are incharge of inserting the last value of the the previous array to the front of the new array so the line would start from the last point to get connectivity between each line drawn        
             if (connect == True and mode == "24-Hour-Plot"):
-                if(lastX != 0 and lastY != 0):
+                if(lastX != 0 and lastY != 0) and values[2] != 'prev':
                     y = np.insert(y, 0, lastY)
                     x = np.insert(x, 0, lastX)
 
             if (values[0].size != 0 and mode == "24-Hour-Plot"):   
                 lastY = values[0][-1]
                 lastX = values[1][-1]
-                #print 'Last:', lastY, lastX
 
             if (values[2] == True and mode == "24-Hour-Plot"):
                 timestamp = open('timestamp.txt', 'a')
@@ -1490,6 +1539,10 @@ def plotData(queue, queue2, fig, ax, canvas, bottomFrame, root, lastY, lastX, co
                         print 'An error occurred: ', errstr
 
 
+            elif values[2] == 'prev':
+                connect = False
+                if values[5]==0:
+                    queue2.put('ready')
             else:
                 connect = True
 
@@ -1556,8 +1609,7 @@ def plotData(queue, queue2, fig, ax, canvas, bottomFrame, root, lastY, lastX, co
             timeNow = now1[0]+' - UTC'
             bottomFrame.currentLabel.configure(text=timeNow) #sets the time as a label on the plot
 
-            if(values[3] == True and mode == "24-Hour-Plot"):
-
+            if values[2] == 'prev' and mode == "24-Hour-Plot" and values[5]==22:
                 graphHeightConst = 2500
                 dataInteractive.dataDeselector('resize')
                 ax.cla()
@@ -1578,8 +1630,6 @@ def plotData(queue, queue2, fig, ax, canvas, bottomFrame, root, lastY, lastX, co
                 line, = ax.plot(x, y, color='k')
                 canvas.draw()
                 fig.canvas.mpl_connect('motion_notify_event', lambda event: bottomFrame.mouse_move(event, graphHeightConst))
-                x = np.array([])
-                y = np.array([])               
                 
             line.set_data(x,y)
             ax.draw_artist(line)
@@ -1593,7 +1643,7 @@ def plotData(queue, queue2, fig, ax, canvas, bottomFrame, root, lastY, lastX, co
 def calculateYAxisLabels(): 
       
     #24 hour labels
-    yaxislabels = []
+    yaxislabels = ['']
      
     #Gets current hour and generates an array containing values of the following 24 hours
     now = str(datetime.utcnow()) 
@@ -1602,39 +1652,38 @@ def calculateYAxisLabels():
     d = datetime.strptime(now[0], "%H")
     d = str(d.strftime("%I %p")).split(' ',1)
     
-    currentHour = int(d[0]) 
+    currentHour = int(d[0])
     ampm = str(" "+d[1]) 
 
-    hourAfter = currentHour + 1
-    hourAfterAmPm = ampm
+    prevHour = currentHour + 1
+    prevHourAmPm = ampm
       
-    if hourAfter == 12:
-        if(hourAfterAmPm == ' AM'):
-            hourAfterAmPm = ' PM'
+    if prevHour == 12:
+        if(prevHourAmPm == ' AM'):
+            prevHourAmPm = ' PM'
         else:
-            hourAfterAmPm = ' AM'
+            prevHourAmPm = ' AM'
           
-    if hourAfter == 13:
-        hourAfter = 1
-  
-    yaxislabels.append(str(currentHour)+ampm)
+    if prevHour == 13:
+        prevHour = 1
+
+    yaxislabels.append(str(prevHour)+prevHourAmPm)
       
-    while currentHour != hourAfter or ampm != hourAfterAmPm:
-        yaxislabels.append(str(hourAfter)+ hourAfterAmPm)
-          
-        hourAfter += 1
-          
-        if hourAfter == 12:
-            if(hourAfterAmPm == ' AM'):
-                hourAfterAmPm = ' PM' 
+    for i in range(1, 24):
+        nextHour = prevHour - 1
+        
+        if nextHour == 11:
+            if(prevHourAmPm == ' AM'):
+                prevHourAmPm = ' PM' 
             else:
-                hourAfterAmPm = ' AM'
-          
-        if hourAfter == 13:
-            hourAfter = 1
-              
-    yaxislabels.append('')
-    return yaxislabels[::-1]
+                prevHourAmPm = ' AM'
+        elif nextHour == 0:
+            nextHour = 12                
+                
+        yaxislabels.append(str(nextHour)+ prevHourAmPm)
+        prevHour = nextHour
+
+    return yaxislabels
 
 ### Calculates labels required to represent the y axis for a 1 hour plot
 def calculateYAxisLabelsOneHour(): 
@@ -1712,27 +1761,53 @@ def directory_handler(path):
         if exception.errno != errno.EEXIST:
             raise    
 
-##Function to populate hourSeismicData array with any previous readings in that hour before readings start.
-def getHourData(stats):
-    sampling_rate = stats['sampling_rate']
-    time = str(datetime.utcnow())
-    year, month, day = time.split('-')[0], time.split('-')[1], time.split('-')[2].split()[0]    #utcnow() in form of 2015-12-10 03:21:24.769079
-    hour = time.split()[1].split(':')[0]
-    filename = year[2:]+month+day+hour+stationId+'.sac'
-    directory = stationId+'/'+year+'/'+month+'/'+day+'/'+filename
-    if not os.path.exists(directory):      #returns an array with appropriate number of zeroes since beginning of hour
-        hour_seconds = (datetime(int(year),int(month),int(day),int(hour),0,0) - datetime(1970,1,1)).total_seconds()
-        number_of_zeroes = int((Time.time()-hour_seconds)*sampling_rate)
-        return np.array([32750]*number_of_zeroes), stats
-    else:      #returns array with data previously recorded in that hour
-        trace = read(pathname_or_url = directory, format = 'SAC')
-        trace = trace.pop(0)
-        data = trace.data
-        hour_seconds = (datetime(int(year),int(month),int(day),int(hour),0,0) - datetime(1970,1,1)).total_seconds()
-        number_of_zeroes = int((Time.time()-hour_seconds)*sampling_rate)-len(data)
-        return np.append(data, [32750]*number_of_zeroes), stats
-            
-        
+##Function to populate hourSeismicData array with any previous readings in that hour before readings start and initiate display of previously recorded data.
+def getHourData(queue, currentMode, mode, graphHeightConst, dcShift, skipConst, stats):
+    originalStats = stats
+    dayData = np.array([])
+    sampling_rate = 18.7647228241
+    for i in range(22,-1,-1):
+        time = datetime.utcnow()
+        if i != 0:
+            time = time-dt.timedelta(hours=i)
+            if i != 22:
+                mode = 'None'
+        year, month, day, hour = str(time.year), str(time.month), str(time.day), str(time.hour)    #utcnow() in form of 2015-12-10 03:21:24.769079   
+        if len(str(hour)) < 2:
+            hour =  '0'+str(hour)
+        if len(str(day)) < 2:
+            day =  '0'+str(day)
+        if len(str(month)) < 2:
+            month =  '0'+str(month) 
+        filename = year[2:]+month+day+hour+stationId+'.sac'
+        directory = stationId+'/'+year+'/'+month+'/'+day+'/'+filename
+        if not os.path.exists(directory):      #returns an array with appropriate number of zeroes since beginning of hour
+            hour_seconds = (datetime(int(year),int(month),int(day),int(hour),0,0) - datetime(1970,1,1)).total_seconds()
+            if i == 0:
+                number_of_zeroes = int((Time.time()-hour_seconds)*sampling_rate)
+                data = np.array([32750]*number_of_zeroes)
+                queue.put(['prev', data, currentMode, mode, graphHeightConst, dcShift, skipConst, stats, i])
+            else:
+                stats['delta']=3600
+                data = np.array([32750,32750])
+                queue.put(['prev', data, currentMode, mode, graphHeightConst, dcShift, skipConst, stats, i])
+        else:      #returns array with data previously recorded in that hour
+            trace = read(pathname_or_url = directory, format = 'SAC')
+            trace = trace.pop(0)
+            data = trace.data
+            hour_seconds = (datetime(int(year),int(month),int(day),int(hour),0,0) - datetime(1970,1,1)).total_seconds()
+            if i == 0:    
+                number_of_zeroes = int((Time.time()-hour_seconds)*trace.stats['sampling_rate'])-len(data)
+            else:
+                stats = trace.stats
+                length, freq = len(data), stats['sampling_rate']
+                number_of_zeroes = 0
+                if not (int(freq*3600)-3 < length < int(freq*3600)+3):    #In case entire hour has not been recorded
+                    number_of_zeroes = int(freq*3600)-length
+            data = np.append(data, [32750]*number_of_zeroes)
+            queue.put(['prev', data, currentMode, mode, graphHeightConst, dcShift, skipConst, stats, i])
+        dayData = np.concatenate((dayData, data))   
+    return data, originalStats, dayData
         
 
 ### Main Method, this is where the application starts - 2 queues are created for passing data between these threads, and 2 process are created one for collecting the data and the other for plotting it
